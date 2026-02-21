@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Reportes y Historial</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+	<link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+    
+    <style>
+        .navbar-nav .nav-link.active {
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+            color: #ffffff !important;
+            font-weight: bold; 
+            border: 1px solid rgba(255,255,255,0.1); 
+        }
+        .navbar-nav .nav-link:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            color: #ffffff;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow mb-4">
+        <div class="container-fluid">
+            <a class="navbar-brand fw-bold" th:href="@{/index}"><i class="fa-solid fa-user-doctor"></i> SIS-QUIRO</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarContent">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" id="nav-pacientes" th:href="@{/gestionpaciente/listar}"><i class="fa-solid fa-hospital-user"></i> Pacientes</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="nav-tratamientos" th:href="@{/gestiontratamiento/listar}"><i class="fa-solid fa-stethoscope"></i> Tratamientos</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="nav-asistencia" th:href="@{/gestionatencion/listar}"><i class="fa-solid fa-clipboard-check"></i> Asistencia</a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" id="nav-citas" href="#" role="button" data-bs-toggle="dropdown"><i class="fa-solid fa-calendar-days"></i> Citas</a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" th:href="@{/gestioncita/nueva}">Nueva Cita</a></li>
+                            <li><a class="dropdown-item" th:href="@{/gestioncita/listar}">Listar Citas</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="nav-usuarios" th:href="@{/gestionusuario/listar}"><i class="fa-solid fa-users-gear"></i> Usuarios</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" th:classappend="${param.vista == null} ? 'active' : ''" th:href="@{/gestionreporte}"><i class="fa-solid fa-chart-line"></i> Reportes</a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle fw-bold text-warning" th:classappend="${param.vista != null and param.vista[0] == 'historial'} ? 'active' : ''" href="#" role="button" data-bs-toggle="dropdown"><i class="fa-solid fa-cart-shopping"></i> Ventas</a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" th:href="@{/gestionventa/nueva}">Nueva Venta</a></li>
+                            <li><a class="dropdown-item" th:href="@{/gestionreporte(vista='historial')}">Historial Ventas</a></li>
+                        </ul>
+                    </li>
+                </ul>
+                <div class="text-white">
+                    <span class="me-3" th:if="${session.usuarioLogueado != null}">
+                        <i class="fa-solid fa-circle-user"></i> <span th:text="${session.usuarioLogueado.nombres}">Usuario</span>
+                    </span>
+					<a href="javascript:void(0)" class="btn btn-sm btn-danger" onclick="confirmarSalida()">
+					    <i class="fa-solid fa-right-from-bracket"></i> Salir
+					</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h2 class="text-primary mb-4" th:if="${param.vista != null and param.vista[0] == 'historial'}">
+            <i class="fa-solid fa-list-check"></i> Historial Completo de Ventas
+        </h2>
+        <h2 class="text-primary mb-4" th:unless="${param.vista != null and param.vista[0] == 'historial'}">
+            <i class="fa-solid fa-chart-pie"></i> Reportes y Estadísticas
+        </h2>
+
+        <div class="row mb-5" th:if="${param.vista == null}">
+            <div class="col-md-8 mx-auto">
+                <div class="card shadow">
+                    <div class="card-header bg-white text-dark fw-bold">
+                        <i class="fa-solid fa-chart-column text-primary"></i> Cantidad de Pacientes por Distrito
+                    </div>
+                    <div class="card-body">
+                        <canvas id="graficoDistritos" style="max-height: 400px;"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <div class="card shadow">
+                    <div class="card-header bg-success text-white fw-bold">
+                        <i class="fa-solid fa-money-bill-wave"></i> 
+                        <span th:text="${param.vista != null and param.vista[0] == 'historial' ? 'Listado de Transacciones' : 'Reporte de Ingresos'}">Reporte</span>
+                    </div>
+                    <div class="card-body">
+                        <table id="tablaVentas" class="table table-striped table-hover" style="width:100%">
+                            <thead>
+                                <tr>
+                                    <th>Nro HP</th>
+                                    <th>Fecha</th>
+                                    <th>Paciente (DNI)</th>
+                                    <th>Sesiones</th>
+                                    <th>Total (S/.)</th>
+                                    <th>Comprobante</th> 
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr th:each="v : ${listaVentas}">
+                                    <td><strong th:text="${v.nroHp}"></strong></td>
+                                    <td th:text="${v.fechaCreacion != null ? #temporals.format(v.fechaCreacion, 'dd/MM/yyyy') : '--/--/----'}"></td>
+                                    <td th:text="${v.dniPaciente}"></td>
+                                    <td class="text-center" th:text="${v.totalSesiones}"></td>
+                                    <td class="text-end text-success fw-bold" th:text="'S/. ' + ${#numbers.formatDecimal(v.costoTotal, 1, 2)}"></td>
+                                    <td class="text-center">
+                                        <a th:href="@{/gestionventa/exportarPDF(nro_hp=${v.nroHp})}" class="btn btn-danger btn-sm" target="_blank">
+                                            <i class="fa-solid fa-file-pdf"></i> PDF
+                                        </a>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script th:inline="javascript">
+        $(document).ready(function() {
+            $('#tablaVentas').DataTable({
+                "order": [ [ 0, "desc" ] ], 
+                "language": { "url": "//cdn.datatables.net/plug-ins/1.11.5/i18n/es-ES.json" }
+            });
+
+            // DETECTAR VENTA EXITOSA
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('exito') === '1') {
+                Swal.fire({
+                    title: '¡Venta Registrada!',
+                    text: 'La transacción se ha guardado y ya aparece en el historial.',
+                    icon: 'success',
+                    confirmButtonColor: '#198754'
+                }).then(() => {
+                    // Limpiamos la URL para que si recarga la página, no vuelva a salir la alerta
+                    window.history.replaceState(null, null, window.location.pathname + "?vista=historial");
+                });
+            }
+        });
+
+        // FUNCIÓN DE CONFIRMACIÓN DE SALIDA (Para mantener coherencia con el Index)
+        function confirmarSalida() {
+            Swal.fire({
+                title: '¿Deseas salir del sistema?',
+                text: "Se cerrará tu sesión actual.",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Sí, salir',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = /*[[@{/logout}]]*/ '/logout';
+                }
+            });
+        }
+
+        // Lógica del gráfico segura
+        const canvas = document.getElementById('graficoDistritos');
+        if (canvas) {
+            const lista = /*[[${listaEstadistica}]]*/ [];
+            const etiquetas = lista ? lista.map(d => d.nombreDistrito || 'Sin Nombre') : [];
+            const datos = lista ? lista.map(d => d.cantidad || 0) : [];
+
+            new Chart(canvas.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: etiquetas,
+                    datasets: [{
+                        label: '# de Pacientes',
+                        data: datos,
+                        backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: { responsive: true, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+            });
+        }
+    </script>
+</body>
+</html>
