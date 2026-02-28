@@ -60,4 +60,5 @@ jobs:
           app-name: 'LPII'
           slot-name: 'Production'
           package: '*.jar'
+
           
